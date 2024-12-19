@@ -1,0 +1,18 @@
+{
+    "name": "ludi-mind",
+    "url" : "https://github.com/c-g-dev/ludi-mind",
+    "description": "Composition system for application building",
+    "license": "MIT",
+    "tags": [
+      "cross", "utility"
+    ],
+    "classPath": "src",
+    "contributors": [
+      "cgdev"
+    ],
+    "releasenote": "Initial release",
+    "version": "1.0.0",
+    "dependencies": {
+		  "uuid": ""
+	  }
+  }

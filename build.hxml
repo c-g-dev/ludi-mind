@@ -1,0 +1,9 @@
+-cp src
+-cp test
+-D analyzer-optimize
+
+-lib ludi-commons
+-lib utest
+
+-main Main
+--interp
