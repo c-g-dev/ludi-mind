@@ -1,6 +1,7 @@
 package ludi.mind.comp;
 
 import haxe.macro.Expr;
+import ludi.mind.Component.ComponentEvent;
 
 class PropSystem {
     var data: Map<String, Dynamic> = new Map();
@@ -83,11 +84,14 @@ class Props extends Component {
         super(parent);
     }
 
-    public function attach() {
-        this.system = new PropSystem();
+    public override function on(e: ComponentEvent) {
+        switch e {
+            case Attach: {
+                this.system = new PropSystem();
+            }
+            default:
+        }
     }
-
-    public function detach() {}
 
     public function get(key: String, ?def: Dynamic): Dynamic {
         var result = system.get(key);
@@ -115,7 +119,7 @@ class Props extends Component {
 
                 if (className == "String") {
                     // It's a string literal
-                    return macro @:privateAccess new PropHandler<Dynamic>(${exprArg}, ${callingExpr}.system);
+                    return macro @:privateAccess new ludi.mind.comp.Props.PropHandler<Dynamic>(${exprArg}, ${callingExpr}.system);
                 }
 
                 // For other classes, we use their type
@@ -156,10 +160,10 @@ class Props extends Component {
 
             default:
                 // For other types, we'll use Dynamic
-                return macro @:privateAccess new PropHandler<Dynamic>($v{name}, macro ${callingExpr}.system);
+                return macro @:privateAccess new ludi.mind.comp.Props.PropHandler<Dynamic>($v{name}, macro ${callingExpr}.system);
         }
 
-        return macro @:privateAccess new PropHandler<$ct>($v{name}, macro ${callingExpr}.system);
+        return macro @:privateAccess new ludi.mind.comp.Props.PropHandler<$ct>($v{name}, ${callingExpr}.system);
     }
 
 }

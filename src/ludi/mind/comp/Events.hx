@@ -1,5 +1,6 @@
 package ludi.mind.comp;
 
+import ludi.mind.Component.ComponentEvent;
 import haxe.macro.TypeTools;
 import haxe.macro.Expr;
 import ludi.commons.util.UUID;
@@ -14,15 +15,26 @@ interface IEventSystem {
     public function getAllOf(tag: String): Array<Subscriber>;
     public function all(): Array<Subscriber>;
     public function dispatch(tag: String, payload: Dynamic): Void;
+    public function setScope(scope: EventScope): Void;
+    public function getScope(): EventScope;
 }       
 
 class BasicEventSystem implements IEventSystem {
     var uuidToSubscriber: Map<String, Subscriber>;
     var tagsToSubscribers: Map<String, Array<Subscriber>>;
+    var scope: EventScope;
 
     public function new() {
         uuidToSubscriber = new Map<String, Subscriber>();
         tagsToSubscribers = new Map<String, Array<Subscriber>>();
+    }
+
+    public function setScope(scope: EventScope): Void {
+        this.scope = scope;
+    }
+
+    public function getScope(): EventScope {
+        return this.scope;
     }
 
     public function on(tag: String, cb: Dynamic -> Void, ?priority: Float): String {
@@ -148,6 +160,9 @@ class EventHandler<T> {
             system: this.system
         });
         ref.on();
+        if(this.system.getScope() != null){
+            this.system.getScope().add(ref);
+        }
         return ref; 
     }
 
@@ -160,6 +175,9 @@ class EventHandler<T> {
             system: this.system
         });
         ref.only();
+        if(this.system.getScope() != null){
+            this.system.getScope().add(ref);
+        }
         return ref;
     }
 
@@ -168,15 +186,52 @@ class EventHandler<T> {
     }
 }
 
+class EventScope {
+    var refs: Array<EventRef>;
+
+    public function new() {
+        this.refs = [];
+    }
+
+    public function add(ref: EventRef): Void {
+        this.refs.push(ref);
+    }
+
+    public function on(): Void {
+        for(eachRef in this.refs){
+            eachRef.on();
+        }
+    }
+
+    public function off(): Void {
+        for(eachRef in this.refs){
+            eachRef.off();
+        }
+    }
+}
+
 class Events extends Component {
 
     var system: IEventSystem;
 
-    public function attach() {
-        this.system = new BasicEventSystem();
+    public override function on(e: ComponentEvent) {
+        switch e {
+            case Attach: {
+                this.system = new BasicEventSystem();
+            }
+            default:
+        }
     }
 
-    public function detach() {}
+    public function beginScope(): Void {
+        system.setScope(new EventScope());
+    }
+
+    public function flushScope(): EventScope {
+        var scope = system.getScope();
+        system.setScope(null);
+        return scope;
+    }
 
     public function raw(tag: String): EventHandler<Dynamic> {
         return new EventHandler<Dynamic>(tag, this.system);

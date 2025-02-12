@@ -10,9 +10,9 @@ import haxe.macro.Context;
 #end
 
 enum IntentRegistration<T> {
-    Default<K>(result: K): IntentRegistration<K>;
-    Implement<K>(result: K): IntentRegistration<K>;
-    NotImplemented: IntentRegistration<{}>;
+    Default(result: T): IntentRegistration<T>;
+    Implement(result: T): IntentRegistration<T>;
+    NotImplemented: IntentRegistration<T>;
 }
 
 class Intents extends Component {
@@ -39,25 +39,19 @@ class Intents extends Component {
     public function detach() {}
 
     public macro function of(callingExpr: haxe.macro.ExprOf<Intents>, exprArg:haxe.macro.Expr):haxe.macro.Expr {
-        switch(exprArg.expr){
-            case EConst(CIdent(ident)): {
-                trace("ident: " + Context.getType(ident));
-            }
-            default:
-        }
 
         switch ExprAsArg.parse(exprArg) {
             case String(str): {
-                return macro @:privateAccess new system.lvl.v2.components.IntentRequest<Dynamic, Dynamic>(${ExprAsArg.getField(callingExpr, "")}, $v{str});
+                return macro @:privateAccess new ludi.mind.comp.Intents.IntentRequest<Dynamic, Dynamic>(${ExprAsArg.getField(callingExpr, "")}, $v{str});
             }
             case Type(info): {
                 var underlyingType = Context.follow(info.type);
                 var params = ExprAsArg.extractTypeParams(underlyingType);
-                return ExprAsArg.withPrivateAccess(ExprAsArg.createConstructorExpr(macro: system.lvl.v2.components.IntentRequest, params, [macro ${callingExpr}.system, macro $v{info.typeName}]));
+                return ExprAsArg.withPrivateAccess(ExprAsArg.createConstructorExpr(macro: ludi.mind.comp.Intents.IntentRequest, params, [macro ${callingExpr}.system, macro $v{info.typeName}]));
             }
             case EnumInst(info): {
                 var key = info.enumName + "." + info.enumInstanceName;
-                return ExprAsArg.withPrivateAccess(ExprAsArg.createConstructorExpr(macro: system.lvl.v2.components.IntentRequest, info.enumInstanceTypeParams, [macro ${callingExpr}.system, macro $v{key}]));
+                return ExprAsArg.withPrivateAccess(ExprAsArg.createConstructorExpr(macro: ludi.mind.comp.Intents.IntentRequest, info.enumInstanceTypeParams, [macro ${callingExpr}.system, macro $v{key}]));
             }
             default: {
                 throw "Unimplemented expr argument";
@@ -73,7 +67,7 @@ class IntentSystem  {
 
     public function new() { }
 
-    public function register(tag: String, callback: (tag: String, payload: Dynamic) -> Option<Dynamic>, ?priority: Int = 0): Void {
+    public function register(tag: String, callback: (payload: Dynamic) -> IntentRegistration<Dynamic>, ?priority: Int = 0): Void {
         var handler: IntentHandler = {
             uuid: UUID.generate(),
             tag: tag,
@@ -95,14 +89,34 @@ class IntentSystem  {
         if (tag2Handlers.exists(tag)) {
             var handlers = tag2Handlers.get(tag);
             for (handler in handlers) {
-                var result = handler.callback(tag, payload);
+                var result = handler.callback(payload);
                 switch (result) {
-                    case Some(value):
-                        return Some(value);
-                    case None:
-                        // Continue to next handler
+                    case Default(v) | Implement(v): {
+                        return v;
+                    }
+                    case NotImplemented:
                 }
             }
+        }
+        return None;
+    }
+
+    public function chain(tag: String, payload: Dynamic): Option<Dynamic> {
+        var result: Dynamic = null;
+        if (tag2Handlers.exists(tag)) {
+            var handlers = tag2Handlers.get(tag);
+            for (handler in handlers) {
+                switch handler.callback(payload) {
+                    case Default(v) | Implement(v): {
+                        result = v;
+                    }
+                    case NotImplemented:
+                }
+            }
+        }
+
+        if (result != null) {
+            return Some(result);
         }
         return None;
     }
@@ -114,7 +128,7 @@ typedef IntentHandler<T = Dynamic> = {
     uuid: String,
     tag: String,
     priority: Int,
-    callback: (tag: String, payload: Dynamic) -> Option<T>
+    callback: (payload: Dynamic) -> IntentRegistration<T>
 }
 
 class IntentRequest<T_Arg, T_Ret> {
@@ -142,5 +156,16 @@ class IntentRequest<T_Arg, T_Ret> {
         
     }
 
-    public function register(cb: T_Arg -> T_Ret): Void {}
+    public function chain(payload: T_Arg): T_Ret {
+        return switch system.chain(tag, payload) {
+            case Some(v): {
+                return cast v;
+            }
+            case None: return null;
+        };
+    }
+
+    public function register(cb: (payload: T_Arg) -> IntentRegistration<T_Ret>, ?priority: Int): Void {
+        system.register(tag, cb, priority);
+    }
 }

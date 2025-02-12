@@ -22,7 +22,6 @@ class ExprAsArg {
             }
         }
         
-
         switch(t) {
             case TInst(c, params): {
                 var className = c.get().name;
@@ -33,6 +32,11 @@ class ExprAsArg {
 
                 return Clazz({typeName: className, pack: c.get().pack, type: t, complexType: haxe.macro.TypeTools.toComplexType(t), typeParams: [
                     for (tparam in params) TPType(haxe.macro.TypeTools.toComplexType(tparam))
+                ]});
+            }
+            case TEnum(e, params): {
+                return EnumInst({enumName: e.get().name, enumInstanceName: name, enumInstanceTypeParams: [
+                    for(tparam in params) TPType(haxe.macro.TypeTools.toComplexType(tparam))
                 ]});
             }
             case TType(t_, params): {

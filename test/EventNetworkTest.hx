@@ -123,27 +123,6 @@ class EventNetworkTest extends Test {
         Assert.equals(callOrder[0], "handlerA");
     }
 
-    @:test
-    function testRootHandler() {
-        var network = new EventNetwork();
-        var calledRoot = false;
-        var calledEventA = false;
-
-        network.root(function() {
-            calledRoot = true;
-            return EventNetworkReport.Complete("eventA");
-        });
-
-        network.when("eventA", function() {
-            calledEventA = true;
-            return EventNetworkReport.Complete("eventB");
-        });
-
-        network.fire();
-
-        Assert.isTrue(calledRoot);
-        Assert.isTrue(calledEventA);
-    }
 
     @:test
     function testWaitingHandlersFiredAfterEvent() {

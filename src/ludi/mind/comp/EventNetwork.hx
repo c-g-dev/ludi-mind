@@ -9,10 +9,15 @@ enum EventNetworkReport {
 
 class EventNetwork extends Component {
     private var handlers: Map<String, Array<() -> EventNetworkReport>> = new Map();
-    private var rootHandler: () -> EventNetworkReport;
+    //private var rootHandler: () -> EventNetworkReport;
+    private var topLevelHandlers: Array<() -> EventNetworkReport> = [];
     
     public function new(?parent: Component) {
         super(parent);
+    }
+
+    public function anytime(handler: () -> EventNetworkReport): Void {
+        topLevelHandlers.push(handler);
     }
     
     public function when(event: String, handler: () -> EventNetworkReport): Void {
@@ -22,9 +27,6 @@ class EventNetwork extends Component {
         handlers.get(event).push(handler);
     }
     
-    public function root(handler: () -> EventNetworkReport): Void {
-        this.rootHandler = handler;
-    }
     
     public function fire(tag: String = null): Void {
         var state: EventNetworkState = {
@@ -35,11 +37,11 @@ class EventNetwork extends Component {
         }
     
         if (tag == null) {
-            // Execute root handler
-            var report = rootHandler();
-            processReport(report, null, state);
+            for (handler in topLevelHandlers) {
+                var report = handler();
+                processReport(report, handler, state);
+            }
         } else {
-            // Start by processing the given tag
             processComplete(tag, state);
         }
     
@@ -97,6 +99,7 @@ class EventNetwork extends Component {
     }
 
     function processComplete(tag: String, state: EventNetworkState): Void {
+        if(tag == null) return;
         if (!state.firedEvents.exists(tag)) {
             state.firedEvents.set(tag, true);
             state.eventsToProcess.push(tag);
@@ -104,6 +107,7 @@ class EventNetwork extends Component {
     }
 
     function processWaitFor(tag: String, handler: () -> EventNetworkReport, state: EventNetworkState): Void {
+        if(tag == null) return;
         if (!state.firedEvents.exists(tag)) {
             if (!state.waitingHandlers.exists(tag)) {
                 state.waitingHandlers.set(tag, []);
