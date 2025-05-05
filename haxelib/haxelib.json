@@ -13,6 +13,6 @@
     "releasenote": "sundry improvements and bugfixes",
     "version": "1.4.0",
     "dependencies": {
-		  "ludi-commons": ""
+		  "uuid": ""
 	  }
   }
