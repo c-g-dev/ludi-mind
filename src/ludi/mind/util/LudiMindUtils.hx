@@ -1,5 +1,6 @@
 package ludi.mind.util;
 
+import haxe.zip.Reader;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 
@@ -10,7 +11,7 @@ class LudiMindUtils {
         #if macro
         var typedExpr = haxe.macro.Context.typeExpr(exprArg);
         var exprType = typedExpr.t;
-
+        Reader;
         switch (exprType) {
             case TInst(c, params): {
                 if (c.get().name == "String") {

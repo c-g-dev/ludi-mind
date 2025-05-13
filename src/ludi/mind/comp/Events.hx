@@ -17,16 +17,20 @@ interface IEventSystem {
     public function dispatch(tag: String, payload: Dynamic): Void;
     public function setScope(scope: EventScope): Void;
     public function getScope(): EventScope;
+    public function addNode(system: IEventSystem): Void;
+    public function removeNode(system: IEventSystem): Void;
 }       
 
 class BasicEventSystem implements IEventSystem {
     var uuidToSubscriber: Map<String, Subscriber>;
     var tagsToSubscribers: Map<String, Array<Subscriber>>;
     var scope: EventScope;
+    var nodes: Array<IEventSystem>;
 
     public function new() {
         uuidToSubscriber = new Map<String, Subscriber>();
         tagsToSubscribers = new Map<String, Array<Subscriber>>();
+        nodes = [];
     }
 
     public function setScope(scope: EventScope): Void {
@@ -36,8 +40,6 @@ class BasicEventSystem implements IEventSystem {
     public function getScope(): EventScope {
         return this.scope;
     }
-
-   
 
     public function on(tag: String, cb: Dynamic -> Void, ?priority: Float): String {
         var eventUUID = UUID.generate();
@@ -114,6 +116,21 @@ class BasicEventSystem implements IEventSystem {
                 subscriber.cb(payload);
             }
         }
+        // Forward to all connected nodes
+        for (node in nodes) {
+            node.dispatch(tag, payload);
+        }
+    }
+
+    public function addNode(system: IEventSystem): Void {
+        if (nodes.indexOf(system) != -1) return; // Already connected
+        nodes.push(system);
+    }
+
+    public function removeNode(system: IEventSystem): Void {
+        var idx = nodes.indexOf(system);
+        if (idx == -1) return; // Not connected
+        nodes.splice(idx, 1);
     }
 }
 
@@ -226,10 +243,12 @@ class EventScope {
 class Events extends Component {
 
     var system: IEventSystem;
+    var nodes: Array<Events>;
 
     public function new() {
         super();
         this.system = new BasicEventSystem();
+        this.nodes = [];
     }
 
     public override function on(e: ComponentEvent) {
@@ -240,6 +259,25 @@ class Events extends Component {
                 }
             }
             default:
+        }
+    }
+
+    public function addNode(node: Events): Void {
+        if (nodes.indexOf(node) != -1) return; // Already connected
+        nodes.push(node);
+    }
+
+    public function removeNode(node: Events): Void {
+        var idx = nodes.indexOf(node);
+        if (idx == -1) return; // Not connected
+        nodes.splice(idx, 1);
+    }
+
+    public function dispatch(tag: String, payload: Dynamic): Void {
+        system.dispatch(tag, payload);
+        // Forward to all connected nodes
+        for (node in nodes) {
+            node.system.dispatch(tag, payload);
         }
     }
 
